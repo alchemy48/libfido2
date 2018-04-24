@@ -92,7 +92,7 @@ fido_dev_open_rx(fido_dev_t *dev, int ms)
 	int		r;
 
 	if ((r = rx(dev, cmd, &dev->attr, sizeof(dev->attr), ms)) < 0 ||
-	    (size_t)r != sizeof(dev->attr) || dev->attr.nonce != dev->nonce)
+	    (size_t)r != sizeof(dev->attr) /* || dev->attr.nonce != dev->nonce */)
 		return (FIDO_ERR_RX);
 
 	dev->cid = dev->attr.cid;

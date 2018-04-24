@@ -154,7 +154,7 @@ rx_preamble(fido_dev_t *d, struct frame *fp, int ms)
 	do {
 		if (rx_frame(d, fp, ms) < 0)
 			return (-1);
-	} while (fp->cid == d->cid &&
+	} while (/* fp->cid == d->cid && */
 	    fp->body.init.cmd == (CTAP_FRAME_INIT | CTAP_KEEPALIVE));
 
 	return (0);
@@ -175,7 +175,7 @@ rx(fido_dev_t *d, uint8_t cmd, void *buf, size_t count, int ms)
 
 	LOG_BUF("initiation frame", (void *)&f, sizeof(f));
 
-	if (f.cid != d->cid || f.body.init.cmd != cmd)
+	if (/* f.cid != d->cid || */ f.body.init.cmd != cmd)
 		LOG_RET(-1);
 
 	flen = (f.body.init.bcnth << 8) | f.body.init.bcntl;
@@ -195,8 +195,10 @@ rx(fido_dev_t *d, uint8_t cmd, void *buf, size_t count, int ms)
 			LOG_RET(-1);
 
 		LOG_BUF("continuation frame", (void *)&f, sizeof(f));
+#if 0
 		if (f.cid != d->cid || f.body.cont.seq != seq++)
 			LOG_RET(-1);
+#endif
 
 		uint8_t *p = (uint8_t *)buf + r;
 
