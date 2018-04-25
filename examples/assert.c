@@ -6,6 +6,8 @@
 
 #include <openssl/ec.h>
 
+#include <fcntl.h>
+#include <hidapi.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -88,6 +90,70 @@ verify_assert(const unsigned char *authdata_ptr, size_t authdata_len,
 	fido_assert_free(&assert);
 }
 
+static int snoop_fd_r;
+
+static void *
+hid_open_wrapper(const char *path)
+{
+#if 0
+	if ((snoop_fd_r = open("/tmp/snoop_r", O_WRONLY | O_CREAT, 0644)) < 0)
+		return (NULL);
+#endif
+	if ((snoop_fd_r = dup(fileno(stdin))) < 0)
+		return (NULL);
+
+	(void)path;
+
+	return ((void *)-1);
+#if 0
+	return ((void *)hid_open_path(path));
+#endif
+}
+
+static void
+hid_close_wrapper(void *handle)
+{
+	close(snoop_fd_r);
+
+	(void)handle;
+
+#if 0
+	hid_close(handle);
+#endif
+}
+
+static int
+hid_read_wrapper(void *handle, unsigned char *buf, size_t len, int ms)
+{
+	int r;
+
+	(void)handle;
+	(void)ms;
+
+	r = (int)read(snoop_fd_r, buf, len);
+#if 0
+	r = hid_read_timeout(handle, buf, len, ms);
+
+	if (r > 0)
+		(void)write(snoop_fd_r, buf, r);
+#endif
+
+	return (r);
+}
+
+static int
+hid_write_wrapper(void *handle, const unsigned char *buf, size_t len)
+{
+	(void)handle;
+	(void)buf;
+
+	return ((int)len);
+
+#if 0
+	return (hid_write(handle, buf, len));
+#endif
+}
+
 int
 main(int argc, char **argv)
 {
@@ -144,6 +210,16 @@ main(int argc, char **argv)
 
 	if ((dev = fido_dev_new()) == NULL)
 		errx(1, "fido_dev_new");
+
+	fido_dev_io_t io;
+
+	io.open = hid_open_wrapper;
+	io.close = hid_close_wrapper;
+	io.read = hid_read_wrapper;
+	io.write = hid_write_wrapper;
+
+	/* XXX temp */
+	fido_dev_set_io_functions(dev, &io);
 
 	r = fido_dev_open(dev, argv[1]);
 	if (r != FIDO_OK)
